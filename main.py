@@ -127,13 +127,6 @@ class VillageScheduleApp:
                                 text=f"版本 1.0 | 开发时间：{datetime.now().strftime('%Y年%m月')}",
                                 style='Author.TLabel')
         author_label.pack()
-        
-        # 添加使用说明按钮到底部（移除原来的小按钮）
-        # help_button = ttk.Button(author_frame,
-        #                        text="使用说明",
-        #                        command=self.show_help,
-        #                        width=10)
-        # help_button.pack(pady=(5, 0))
     
     def center_window(self):
         """居中显示窗口"""
@@ -293,6 +286,120 @@ class VillageScheduleApp:
         self.status_label.config(text=message)
         self.root.update_idletasks()
     
+    def show_success_dialog(self, script_type, output_info):
+        """显示成功对话框，包含文件生成位置信息"""
+        success_window = tk.Toplevel(self.root)
+        success_window.title("执行成功")
+        success_window.geometry("500x400")
+        success_window.resizable(True, True)
+        
+        # 居中显示
+        success_window.transient(self.root)
+        success_window.grab_set()
+        
+        # 创建主框架
+        main_frame = ttk.Frame(success_window, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 成功图标和标题
+        title_frame = ttk.Frame(main_frame)
+        title_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        success_label = ttk.Label(title_frame, 
+                                 text="✅ 执行成功！", 
+                                 font=('Microsoft YaHei', 16, 'bold'),
+                                 foreground='#27ae60')
+        success_label.pack()
+        
+        # 操作类型
+        operation_label = ttk.Label(title_frame, 
+                                   text=f"操作类型：{script_type}",
+                                   font=('Microsoft YaHei', 12))
+        operation_label.pack(pady=(5, 0))
+        
+        # 文件生成位置信息
+        location_frame = ttk.LabelFrame(main_frame, text="生成的文件位置", padding="10")
+        location_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 20))
+        
+        # 获取当前工作目录
+        current_dir = os.getcwd()
+        
+        # 根据脚本类型显示不同的文件位置信息
+        if script_type == "生成调度表":
+            files_info = f"""📁 当前目录：{current_dir}
+
+📄 生成的文件：
+  • 总表.xlsx - 完整的调度安排表格
+
+💡 说明：
+  • 总表包含了所有村庄的看望安排
+  • 可以直接打开查看或打印使用
+  • 如需生成个人日程，请继续执行K2功能"""
+        else:  # 生成个人日程
+            files_info = f"""📁 当前目录：{current_dir}
+
+📂 生成的文件夹：
+  • 个人日程表/ 文件夹
+
+📄 文件夹内容：
+  • [姓名].xlsx - 各人员的个人日程表
+  • [姓名]_日程提醒.ics - 日历提醒文件
+
+💡 说明：
+  • Excel文件可直接打开查看个人安排
+  • .ics文件可导入手机日历设置提醒
+  • 支持导入到iOS、Android等系统日历"""
+        
+        # 文本显示区域
+        text_frame = ttk.Frame(location_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+        
+        text_widget = tk.Text(text_frame, wrap=tk.WORD, font=('Microsoft YaHei', 10),
+                             height=12, state=tk.NORMAL)
+        text_scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=text_widget.yview)
+        text_widget.configure(yscrollcommand=text_scrollbar.set)
+        
+        text_widget.insert(tk.END, files_info)
+        text_widget.config(state=tk.DISABLED)
+        
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 按钮框架
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # 打开文件夹按钮
+        def open_folder():
+            try:
+                if script_type == "生成调度表":
+                    # 打开当前目录
+                    os.startfile(current_dir)
+                else:
+                    # 打开个人日程表文件夹
+                    schedule_folder = os.path.join(current_dir, "个人日程表")
+                    if os.path.exists(schedule_folder):
+                        os.startfile(schedule_folder)
+                    else:
+                        os.startfile(current_dir)
+            except Exception as e:
+                messagebox.showerror("错误", f"无法打开文件夹：{str(e)}")
+        
+        open_button = ttk.Button(button_frame, text="打开文件夹", command=open_folder)
+        open_button.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # 关闭按钮
+        close_button = ttk.Button(button_frame, text="关闭", command=success_window.destroy)
+        close_button.pack(side=tk.RIGHT)
+        
+        # 居中显示窗口
+        success_window.update_idletasks()
+        width = success_window.winfo_width()
+        height = success_window.winfo_height()
+        x = (success_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (success_window.winfo_screenheight() // 2) - (height // 2)
+        success_window.geometry(f'{width}x{height}+{x}+{y}')
+    
     def run_script(self, script_name, button_text):
         """运行Python脚本"""
         try:
@@ -321,7 +428,8 @@ class VillageScheduleApp:
             
             if result.returncode == 0:
                 self.update_status(f"{button_text}执行成功！")
-                messagebox.showinfo("成功", f"{button_text}执行成功！\n\n输出信息：\n{result.stdout}")
+                # 显示成功对话框，包含文件位置信息
+                self.show_success_dialog(button_text, result.stdout)
             else:
                 self.update_status(f"{button_text}执行失败！")
                 messagebox.showerror("错误", f"{button_text}执行失败！\n\n错误信息：\n{result.stderr}")
